@@ -1,0 +1,88 @@
+1. Revenue per Sales Channel (Given Year)
+  SELECT 
+    sales_channel, 
+    SUM(amount) AS total_revenue
+FROM clinic_sales
+WHERE YEAR(datetime) = 2021
+GROUP BY sales_channel;
+
+2. Top 10 Most Valuable Customers (Given Year)
+SELECT 
+    c.uid, 
+    c.name, 
+    SUM(s.amount) AS total_spent
+FROM customer c
+JOIN clinic_sales s ON c.uid = s.uid
+WHERE YEAR(s.datetime) = 2021
+GROUP BY c.uid, c.name
+ORDER BY total_spent DESC
+LIMIT 10;
+
+3. Month-wise Profitability Status (Given Year)
+SELECT 
+    month,
+    revenue,
+    expense,
+    (revenue - expense) AS profit,
+    CASE 
+        WHEN (revenue - expense) > 0 THEN 'profitable' 
+        ELSE 'not-profitable' 
+    END AS status
+FROM (
+    SELECT 
+        MONTH(datetime) AS month,
+        SUM(CASE WHEN type = 'sales' THEN amount ELSE 0 END) AS revenue,
+        SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS expense
+    FROM (
+        SELECT datetime, amount, 'sales' AS type FROM clinic_sales WHERE YEAR(datetime) = 2021
+        UNION ALL
+        SELECT datetime, amount, 'expense' AS type FROM expenses WHERE YEAR(datetime) = 2021
+    ) combined_data
+    GROUP BY MONTH(datetime)
+) monthly_summary;
+
+4. Most Profitable Clinic per City (Given Month)
+WITH ClinicProfit AS (
+    SELECT 
+        cl.city, 
+        cl.clinic_name,
+        (COALESCE(SUM(s.amount), 0) - COALESCE(e.total_exp, 0)) AS net_profit
+    FROM clinics cl
+    LEFT JOIN clinic_sales s ON cl.cid = s.cid AND MONTH(s.datetime) = 9 AND YEAR(s.datetime) = 2021
+    LEFT JOIN (
+        SELECT cid, SUM(amount) AS total_exp 
+        FROM expenses 
+        WHERE MONTH(datetime) = 9 AND YEAR(datetime) = 2021 
+        GROUP BY cid
+    ) e ON cl.cid = e.cid
+    GROUP BY cl.city, cl.clinic_name, e.total_exp
+)
+SELECT city, clinic_name, net_profit
+FROM (
+    SELECT *, RANK() OVER(PARTITION BY city ORDER BY net_profit DESC) as rnk
+    FROM ClinicProfit
+) ranked
+WHERE rnk = 1;
+
+5. Second Least Profitable Clinic per State (Given Month)
+WITH StateProfit AS (
+    SELECT 
+        cl.state, 
+        cl.clinic_name,
+        (COALESCE(SUM(s.amount), 0) - COALESCE(e.total_exp, 0)) AS net_profit
+    FROM clinics cl
+    LEFT JOIN clinic_sales s ON cl.cid = s.cid AND MONTH(s.datetime) = 9 AND YEAR(s.datetime) = 2021
+    LEFT JOIN (
+        SELECT cid, SUM(amount) AS total_exp 
+        FROM expenses 
+        WHERE MONTH(datetime) = 9 AND YEAR(datetime) = 2021 
+        GROUP BY cid
+    ) e ON cl.cid = e.cid
+    GROUP BY cl.state, cl.clinic_name, e.total_exp
+)
+SELECT state, clinic_name, net_profit
+FROM (
+    SELECT *, DENSE_RANK() OVER(PARTITION BY state ORDER BY net_profit ASC) as rnk
+    FROM StateProfit
+) ranked
+WHERE rnk = 2;
