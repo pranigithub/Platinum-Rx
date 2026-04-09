@@ -1,35 +1,59 @@
--- Step 1: Create the tables
-CREATE TABLE users (
-    user_id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
-    phone_number VARCHAR(20),
-    mail_id VARCHAR(100),
-    billing_address TEXT
-);
+1. Last Booked Room for Every User
+    SELECT user_id, room_no
+FROM (
+    SELECT user_id, room_no,
+           ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY booking_date DESC) as rn
+    FROM bookings
+) t
+WHERE rn = 1;
+2. November 2021 Total Billing
+    SELECT b.booking_id, SUM(bc.item_quantity * i.item_rate) AS total_billing_amount
+    FROM bookings b
+    JOIN booking_commercials bc ON b.booking_id = bc.booking_id
+    JOIN items i ON bc.item_id = i.item_id
+    WHERE b.booking_date >= '2021-11-01' AND b.booking_date < '2021-12-01'
+    GROUP BY b.booking_id;
 
-CREATE TABLE bookings (
-    booking_id VARCHAR(50) PRIMARY KEY,
-    booking_date DATETIME,
-    room_no VARCHAR(50),
-    user_id VARCHAR(50)
-);
+3. High Value Bills in October 2021
+    SELECT bc.bill_id, SUM(bc.item_quantity * i.item_rate) AS bill_amount
+    FROM booking_commercials bc
+    JOIN items i ON bc.item_id = i.item_id
+    WHERE bc.bill_date BETWEEN '2021-10-01' AND '2021-10-31 23:59:59'
+    GROUP BY bc.bill_id
+    HAVING SUM(bc.item_quantity * i.item_rate) > 1000;
 
-CREATE TABLE items (
-    item_id VARCHAR(50) PRIMARY KEY,
-    item_name VARCHAR(100),
-    item_rate DECIMAL(10,2)
-);
+4. Most and Least Ordered Item per Month
+    WITH MonthlySales AS (
+        SELECT MONTH(bill_date) as mo, item_id, SUM(item_quantity) as total_qty
+        FROM booking_commercials
+        WHERE YEAR(bill_date) = 2021
+        GROUP BY MONTH(bill_date), item_id
+    ),
+    RankedItems AS (
+        SELECT mo, item_id, total_qty,
+               RANK() OVER(PARTITION BY mo ORDER BY total_qty DESC) as most_rank,
+               RANK() OVER(PARTITION BY mo ORDER BY total_qty ASC) as least_rank
+        FROM MonthlySales
+    )
+    SELECT mo as Month, item_id, total_qty,
+           CASE WHEN most_rank = 1 THEN 'Most Ordered' ELSE 'Least Ordered' END as status
+    FROM RankedItems
+    WHERE most_rank = 1 OR least_rank = 1;
 
--- Step 2: Insert the sample data
-INSERT INTO users (user_id, name, phone_number, mail_id, billing_address) 
-VALUES ('21wrcxuy-67erfn', 'John Doe', '97XXXXXXXX', 'john.doe@example.com', 'XX, Street Y, ABC City');
-
-INSERT INTO bookings (booking_id, booking_date, room_no, user_id) 
-VALUES ('bk-09f3e-95hj', '2021-09-23 07:36:48', 'rm-bhf9-aerjn', '21wrcxuy-67erfn');
-
-INSERT INTO items (item_id, item_name, item_rate) 
-VALUES ('itm-a9e8-q8fu', 'Tawa Paratha', 18.00), 
-       ('itm-a07vh-aer8', 'Mix Veg', 89.00);
-
--- Step 3: Run your first query
-SELECT * FROM bookings;
+5. Customers with Second Highest Bill Value
+    WITH MonthlyUserBills AS (
+        SELECT MONTH(bc.bill_date) as mo, b.user_id, SUM(bc.item_quantity * i.item_rate) as total_value
+        FROM bookings b
+        JOIN booking_commercials bc ON b.booking_id = bc.booking_id
+        JOIN items i ON bc.item_id = i.item_id
+        WHERE YEAR(bc.bill_date) = 2021
+        GROUP BY MONTH(bc.bill_date), b.user_id
+    ),
+    RankedBills AS (
+        SELECT mo, user_id, total_value,
+               DENSE_RANK() OVER(PARTITION BY mo ORDER BY total_value DESC) as rnk
+        FROM MonthlyUserBills
+    )
+    SELECT mo as Month, user_id, total_value
+    FROM RankedBills
+    WHERE rnk = 2;
