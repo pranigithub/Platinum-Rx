@@ -1,0 +1,35 @@
+1. Minutes to Human Readable Form
+def get_readable_time(input_minutes):
+    
+    if input_minutes < 0:
+        return "Please enter a positive number."
+    
+   
+    hrs = input_minutes // 60
+    mins = input_minutes % 60
+    
+    
+    hour_text = "hr" if hrs == 1 else "hrs"
+    minute_text = "minutes"
+    
+    return f"{hrs} {hour_text} {mins} {minute_text}"
+
+
+print(get_readable_time(130))  # Output: 2 hrs 10 minutes
+print(get_readable_time(110))  # Output: 1 hr 50 minutes
+
+Task 2: Unique String Filter
+def filter_unique_chars(text):
+    
+    result = ""
+    
+    for character in text:
+        
+        if character not in result:
+            result += character
+            
+    return result
+
+
+user_input = "success"
+print(f"Cleaned String: {filter_unique_chars(user_input)}") # Output: suces
