@@ -1,0 +1,35 @@
+-- Step 1: Create the tables
+CREATE TABLE users (
+    user_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100),
+    phone_number VARCHAR(20),
+    mail_id VARCHAR(100),
+    billing_address TEXT
+);
+
+CREATE TABLE bookings (
+    booking_id VARCHAR(50) PRIMARY KEY,
+    booking_date DATETIME,
+    room_no VARCHAR(50),
+    user_id VARCHAR(50)
+);
+
+CREATE TABLE items (
+    item_id VARCHAR(50) PRIMARY KEY,
+    item_name VARCHAR(100),
+    item_rate DECIMAL(10,2)
+);
+
+-- Step 2: Insert the sample data
+INSERT INTO users (user_id, name, phone_number, mail_id, billing_address) 
+VALUES ('21wrcxuy-67erfn', 'John Doe', '97XXXXXXXX', 'john.doe@example.com', 'XX, Street Y, ABC City');
+
+INSERT INTO bookings (booking_id, booking_date, room_no, user_id) 
+VALUES ('bk-09f3e-95hj', '2021-09-23 07:36:48', 'rm-bhf9-aerjn', '21wrcxuy-67erfn');
+
+INSERT INTO items (item_id, item_name, item_rate) 
+VALUES ('itm-a9e8-q8fu', 'Tawa Paratha', 18.00), 
+       ('itm-a07vh-aer8', 'Mix Veg', 89.00);
+
+-- Step 3: Run your first query
+SELECT * FROM bookings;
